@@ -24,6 +24,10 @@ func run(ctx context.Context) error {
 	cmd.Stderr = os.Stderr
 
 	err := cmd.Run()
+	if os.IsNotExist(err) {
+		return retry.Abort(err)
+	}
+
 	select {
 	case <-ctx.Done():
 		log.Println("CANCELLED:", ctx.Err())
@@ -32,6 +36,7 @@ func run(ctx context.Context) error {
 			log.Println("FAILURE:", err)
 		}
 	}
+
 	return err
 }
 
