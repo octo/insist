@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
+	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -15,11 +18,12 @@ var (
 	timeout  = flag.Duration("timeout", 0, "Timeout of each individual attempt or zero to block indefinitely.")
 )
 
-func run(ctx context.Context) error {
+func run(ctx context.Context, stdin io.Reader) error {
 	log.Println("Attempt", retry.Attempt(ctx), "...")
 
 	args := flag.Args()
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+	cmd.Stdin = stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -44,12 +48,20 @@ func main() {
 	ctx := context.Background()
 	flag.Parse()
 
+	in, err := ioutil.ReadAll(os.Stdin)
+	if err != nil {
+		log.Fatal("reading STDIN:", err)
+	}
+
 	opts := []retry.Option{
 		retry.Attempts(*attempts),
 		retry.Timeout(*timeout),
 	}
 
-	if err := retry.Do(ctx, run, opts...); err != nil {
+	err = retry.Do(ctx, func(ctx context.Context) error {
+		return run(ctx, bytes.NewReader(in))
+	}, opts...)
+	if err != nil {
 		log.Fatal(err)
 	}
 }
