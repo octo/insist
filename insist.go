@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 
+	isatty "github.com/mattn/go-isatty"
 	"github.com/octo/retry"
 )
 
@@ -44,11 +45,19 @@ func run(ctx context.Context, stdin io.Reader) error {
 	return err
 }
 
+func readStdin(f *os.File) ([]byte, error) {
+	if isatty.IsTerminal(f.Fd()) || isatty.IsCygwinTerminal(f.Fd()) {
+		return nil, nil
+	}
+
+	return ioutil.ReadAll(f)
+}
+
 func main() {
 	ctx := context.Background()
 	flag.Parse()
 
-	in, err := ioutil.ReadAll(os.Stdin)
+	in, err := readStdin(os.Stdin)
 	if err != nil {
 		log.Fatal("reading STDIN:", err)
 	}
